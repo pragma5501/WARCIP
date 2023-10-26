@@ -1,5 +1,4 @@
 #include "WARCIP.h"
-#include "macro.h"
 
 
 int compare_centers(const void* a, const void* b) {
@@ -16,7 +15,16 @@ void sort_clusters (w_driver_t* w_driver)
 
 }
 
-int WARCIP(w_driver_t*w_driver, double RWI) {
+void make_unavailable_cluster (w_driver_t* w_driver, int cluster_id) 
+{
+        w_driver->clusters[cluster_id].num_pages = 0;
+        
+        push_stream_id (w_driver->sender_dispatcher, w_driver->clusters[cluster_id].stream_id);
+        w_driver->clusters[cluster_id].stream_id = (STATE_CLOSED);
+}
+
+int WARCIP(w_driver_t*w_driver, double RWI) 
+{
         int cluster_id = cluster_greedy(w_driver, RWI);
 
         return cluster_id;
@@ -136,7 +144,7 @@ int cluster_greedy (w_driver_t* w_driver, double RWI)
         }
 
         // dsam trigger
-        if (w_driver->cnt_block_filled % (THRESHOLD_DSAM) == 0) {
+        if ((w_driver->cnt_block_filled + 125) % (THRESHOLD_DSAM) == 0) {
                 dsam(w_driver, cluster_id);
         }
         
@@ -157,7 +165,20 @@ void dsam (w_driver_t* w_driver, int cluster_id)
 {
         if (w_driver->clusters[cluster_id].num_pages >= (THRESHOLD_SPLIT)) {
                 split(w_driver, cluster_id);
+                return;
         }
+        
+        for (int i = 0; i < MAX_CLUSTER_NUM; i++) {
+                if (w_driver->clusters[i].stream_id == (STATE_CLOSED)) {
+                        break;
+                }
+                if (w_driver->clusters[i].num_pages <= (THRESHOLD_MERGE)) {
+                     merge(w_driver, i);
+                     w_driver->clusters[i].num_pages = 0;
+                     break;
+                }
+        }
+        
 }
 
 
@@ -170,29 +191,43 @@ void split_cluster_delta (w_driver_t* w_driver, int cluster_id, int victim_id)
 
 }
 
-void split_cluster (w_driver_t* w_driver, int cluster_id, int victim_id)
+int find_closest_center (w_driver_t* w_driver, int cluster_id) 
 {
-        double tmp1 = 0;
-        double tmp2 = 0;
+        int id1 = 0;
+        int id2 = 0;
 
         // Case 1 : minimum RWI average
         if (cluster_id == 0) {
-                tmp2 = w_driver->clusters[1].center;
+                id2 = 1;
         }
         // Case 2 : maximum RWI average
         else if (cluster_id == (MAX_CLUSTER_NUM) - 1) {
-                tmp2 = w_driver->clusters[cluster_id - 1].center;
+                id2 = cluster_id - 1;// ;
         }
         else {
-                tmp1 = w_driver->clusters[cluster_id - 1].center;
-                tmp2 = w_driver->clusters[cluster_id + 1].center;
+                id1 = cluster_id - 1;
+                id2 = cluster_id + 1;
         }
+        double tmp1 = w_driver->clusters[id1].center;
+        double tmp2 = w_driver->clusters[id2].center;
 
         // tmp1 < cur_center < tmp2
         double cur_center = w_driver->clusters[cluster_id].center;
-        double d = MIN_ABS(tmp1 - cur_center, tmp2 - cur_center);
+        if ( (ABS(tmp1 - cur_center)) < (ABS(tmp2 - cur_center)) ) {
+                return id1;
+        } else {
+                return id2;
+        }
+}
 
-        w_driver->clusters[victim_id].center = (cur_center + d) / 2;
+void split_cluster (w_driver_t* w_driver, int cluster_id, int victim_id)
+{
+        int closest_id = find_closest_center(w_driver, cluster_id);
+
+        double cur_center = w_driver->clusters[cluster_id].center;
+        double closest_center = w_driver->clusters[closest_id].center;
+
+        w_driver->clusters[victim_id].center = (cur_center + closest_center) / 2;
 }
 
 
@@ -200,13 +235,13 @@ void split (w_driver_t* w_driver, int cluster_id)
 {
         cluster_t vtm = w_driver->clusters[cluster_id];
         if (cluster_id == (MAX_CLUSTER_NUM) - 1) {
-                
+                return;
         }
 
         for (int i = 0; i < MAX_CLUSTER_NUM; i++) {
                 // set new cluster that absorb burst I/O
-                if( w_driver->clusters[i].num_pages == 0) {
-                        split_cluster_delta(w_driver, cluster_id, i);
+                if (w_driver->clusters[i].num_pages == 0) {
+                        split_cluster(w_driver, cluster_id, i);
                         
                         break;
                 }
@@ -216,9 +251,26 @@ void split (w_driver_t* w_driver, int cluster_id)
         sort_clusters(w_driver);
 }
 
+void merge_cluster (w_driver_t* w_driver, int cluster_id)
+{
+        int closest_id = find_closest_center(w_driver, cluster_id);
+        double cur_center = w_driver->clusters[cluster_id].center;
+        double closest_center = w_driver->clusters[closest_id].center;
+
+        w_driver->clusters[cluster_id].center = (cur_center + closest_center) / 2;
+
+        // push free cluster
+        
+        make_unavailable_cluster(w_driver, cluster_id);
+}
+
 void merge (w_driver_t* w_driver, int cluster_id)
 {
+        if (w_driver->sender_dispatcher->length <= 1) return;
         
-
+        merge_cluster(w_driver, cluster_id);
+        sort_clusters(w_driver);
 }
+
+
 

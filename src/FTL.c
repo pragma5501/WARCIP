@@ -177,7 +177,9 @@ void destroy_ssd (ssd_t* my_ssd)
 
 int get_PPN (ssd_t* my_ssd, int stream_id) 
 {
-
+        if (stream_id == -1) {
+                printf("fuck\n");
+        }
         return my_ssd->idx_block_op[stream_id] + my_ssd->block_op[stream_id]->offset;
 }
 
@@ -194,8 +196,9 @@ _queue* free_q_init (ssd_t* my_ssd, _queue* q)
         return q;
 }
 
-int free_q_pop (ssd_t* my_ssd, _queue* free_q, int stream_id) 
+int free_q_pop (ssd_t* my_ssd, _queue* free_q, req_FTL_t* req_FTL) 
 {
+        int stream_id = req_FTL->stream_id;
         
         if (my_ssd->idx_block_op[stream_id] >= PAGE_NUM) {
                 
@@ -212,9 +215,9 @@ int free_q_pop (ssd_t* my_ssd, _queue* free_q, int stream_id)
                 my_ssd->idx_block_op[stream_id] += 1;
 
                 
-                GC_trigger(my_ssd, free_q);
+                GC_trigger(my_ssd, free_q, req_FTL);
         }
-
+        
         int PPN = get_PPN(my_ssd, stream_id);
         my_ssd->idx_block_op[stream_id] += 1;
 
@@ -248,10 +251,11 @@ double get_utilization ()
 
 
 
-ssd_t* trans_IO_to_ssd (ssd_t* my_ssd,_queue* free_q, int LBA, int stream_id) 
+ssd_t* trans_IO_to_ssd (ssd_t* my_ssd,_queue* free_q, req_FTL_t* req_FTL) 
 {
         int PPN;
-
+        int stream_id = req_FTL->stream_id;
+        int LBA = req_FTL->LBA;
 
         // if modify
         if (mapping_table[LBA] != -1) {
@@ -260,7 +264,7 @@ ssd_t* trans_IO_to_ssd (ssd_t* my_ssd,_queue* free_q, int LBA, int stream_id)
                 
         }
 
-        PPN = free_q_pop(my_ssd, free_q, stream_id);
+        PPN = free_q_pop(my_ssd, free_q, req_FTL);
 
         //printf("LBA -> PPN : %d -> %d\n", LBA, PPN);
         my_ssd = ssd_t_write(my_ssd, PPN, VALID, LBA);
@@ -269,7 +273,7 @@ ssd_t* trans_IO_to_ssd (ssd_t* my_ssd,_queue* free_q, int LBA, int stream_id)
         return my_ssd;
 }
 
-void GC_trigger(ssd_t* my_ssd, _queue* free_q) 
+void GC_trigger(ssd_t* my_ssd, _queue* free_q, req_FTL_t* req_FTL) 
 {
         if (my_ssd->flag_GC == GC_T) {
                 return;
@@ -277,14 +281,14 @@ void GC_trigger(ssd_t* my_ssd, _queue* free_q)
 
 
         while (free_q->size < THRESHOLD_FREE_Q) {
-                GC(my_ssd, free_q);
+                GC(my_ssd, free_q, req_FTL);
         }
         
 
 
 }
 
-int GC (ssd_t* my_ssd, _queue* free_q) 
+int GC (ssd_t* my_ssd, _queue* free_q, req_FTL_t* req_FTL) 
 {
 
         my_ssd->flag_GC = GC_T;
@@ -293,11 +297,8 @@ int GC (ssd_t* my_ssd, _queue* free_q)
         int block_n_victim = get_victim(my_ssd);
         block_t* block_victim = my_ssd->block[block_n_victim];
 
-        int stream_id = block_victim->stream_id;
-        //if (stream_id == 0) {
-        //        printf("stream 0 invalid page num : %d\n", my_ssd->block[block_n_victim]->invalid_page_num);
-        //}
-        //printf("free_q size : %d\n", free_q->size);
+        
+        int stream_id = -1;
 
         int i;
         for(i = 0; i < PAGE_NUM; i++) {
@@ -311,9 +312,22 @@ int GC (ssd_t* my_ssd, _queue* free_q)
                 if (page_bit != VALID) {
                         continue;
                 }
-
-                int PPN = free_q_pop(my_ssd, free_q, stream_id);
+                
                 int LBA = block_victim->LBA[i];
+
+                // GC Feedback
+                double RWI = get_RWI(req_FTL->w_driver, LBA, req_FTL->time) * 2;
+                update_time_table(req_FTL->w_driver, LBA, req_FTL->time);
+                
+                int cluster_id = WARCIP(req_FTL->w_driver, RWI);
+
+                int tmp_id = req_FTL->w_driver->clusters[cluster_id].stream_id;
+                stream_id = dispatch(req_FTL->w_dispatcher, tmp_id);
+                req_FTL->stream_id = stream_id;
+                req_FTL->w_driver->clusters[cluster_id].stream_id = stream_id;
+                // GC Feedback done
+
+                int PPN = free_q_pop(my_ssd, free_q, req_FTL);
 
                 ssd_t_write(my_ssd, PPN, VALID, LBA);
 
@@ -323,6 +337,8 @@ int GC (ssd_t* my_ssd, _queue* free_q)
         //printf("GC result\n");
         //printf("victim block : %d\n", block_n_victim);
         //printf("invalid page num : %d\n", my_ssd->block[block_n_victim]->invalid_page_num);
+
+        stream_id = block_victim->stream_id;
 
         page_erase(my_ssd->block[block_n_victim]->page_bitmap);
         my_ssd->block[block_n_victim] = block_victim;

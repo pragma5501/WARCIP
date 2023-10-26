@@ -1,5 +1,9 @@
+#ifndef __DSISPATCHER_H__
+#define __DSISPATCHER_H__
+
 #include <stdio.h>
 #include <stdlib.h>
+
 
 #define MAX_STREAM_NUM 16
 #define STATE_CLOSED -1
@@ -14,6 +18,7 @@ typedef struct dispatcher_t{
 
 } w_dispatcher_t;
 
+#endif
 
 w_dispatcher_t* w_dispatcher_t_init (w_dispatcher_t* my_dispatcher);
 void push_stream_id (w_dispatcher_t* my_dispatcher, int stream_id);

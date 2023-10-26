@@ -16,9 +16,10 @@ w_dispatcher_t* w_dispatcher_t_init (w_dispatcher_t* my_dispatcher)
 
 void push_stream_id (w_dispatcher_t* my_dispatcher, int stream_id)
 {
+
         my_dispatcher->tail = (my_dispatcher->tail + 1) % (MAX_STREAM_NUM);
         my_dispatcher->stream_id_q[my_dispatcher->tail] = stream_id;
-
+        
         my_dispatcher->length++;
 }
 int pop_stream_id (w_dispatcher_t* my_dispatcher)
@@ -29,6 +30,7 @@ int pop_stream_id (w_dispatcher_t* my_dispatcher)
         }
 
         int stream_id = my_dispatcher->stream_id_q[my_dispatcher->head];
+
         my_dispatcher->head = (my_dispatcher->head + 1) % (MAX_STREAM_NUM);
         my_dispatcher->length--;
         return stream_id;
@@ -36,6 +38,7 @@ int pop_stream_id (w_dispatcher_t* my_dispatcher)
 
 int dispatch(w_dispatcher_t* my_dispatcher, int stream_id) {
         if (stream_id == (STATE_CLOSED)) {
+                
                 return pop_stream_id(my_dispatcher);
         }
 
