@@ -214,7 +214,7 @@ int free_q_pop (ssd_t* my_ssd, _queue* free_q, req_FTL_t* req_FTL)
                 my_ssd->block_op[stream_id]->flag_op = OPEN;
                 my_ssd->idx_block_op[stream_id] += 1;
 
-                
+                // reinit cluster
                 GC_trigger(my_ssd, free_q, req_FTL);
         }
         
@@ -301,6 +301,7 @@ int GC (ssd_t* my_ssd, _queue* free_q, req_FTL_t* req_FTL)
         int stream_id = -1;
 
         int i;
+        int valid_copy = 0;
         for(i = 0; i < PAGE_NUM; i++) {
 
                 int page_bit = block_victim->page_bitmap[i];
@@ -316,7 +317,7 @@ int GC (ssd_t* my_ssd, _queue* free_q, req_FTL_t* req_FTL)
                 int LBA = block_victim->LBA[i];
 
                 // GC Feedback
-                double RWI = get_RWI(req_FTL->w_driver, LBA, req_FTL->time) * 2;
+                double RWI = get_RWI(req_FTL->w_driver, LBA, req_FTL->time);
                 update_time_table(req_FTL->w_driver, LBA, req_FTL->time);
                 
                 int cluster_id = WARCIP(req_FTL->w_driver, RWI);
@@ -331,8 +332,8 @@ int GC (ssd_t* my_ssd, _queue* free_q, req_FTL_t* req_FTL)
 
                 ssd_t_write(my_ssd, PPN, VALID, LBA);
 
-                my_ssd->log_group[stream_id]->valid_copy_num++;
-                my_ssd->log_group[stream_id]->traff_valid_copy++;
+                valid_copy++;
+                //my_ssd->log_group[stream_id]->traff_valid_copy++;
         }
         //printf("GC result\n");
         //printf("victim block : %d\n", block_n_victim);
@@ -349,7 +350,7 @@ int GC (ssd_t* my_ssd, _queue* free_q, req_FTL_t* req_FTL)
         
         my_ssd->log_group[stream_id]->segment_num--;
         my_ssd->log_group[stream_id]->traff_erase++;
-        my_ssd->log_group[stream_id]->traff_valid_copy += my_ssd->log_group[stream_id]->valid_copy_num;
+        my_ssd->log_group[stream_id]->traff_valid_copy += valid_copy;
         my_ssd->flag_GC = GC_F;
 
 

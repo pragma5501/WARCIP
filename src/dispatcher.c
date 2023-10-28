@@ -1,4 +1,4 @@
-#include "dispatcher.h"
+#include "data_proc.h"
 
 w_dispatcher_t* w_dispatcher_t_init (w_dispatcher_t* my_dispatcher)
 {

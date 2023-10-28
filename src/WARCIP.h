@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include "macro.h"
 #include "dispatcher.h"
+#include "ssd.h"
 
 #define T_TABLE_NUM 3125 * 1250
 #define T_TABLE_PAGE_NUM 8
@@ -14,7 +15,7 @@
 
 #define THRESHOLD_DSAM  256
 #define THRESHOLD_SPLIT 256 // PAGE_NUM / 2 == 516 / 2;
-#define THRESHOLD_MERGE 256
+#define THRESHOLD_MERGE 10
 #define STATE_CLOSED -1
 
 

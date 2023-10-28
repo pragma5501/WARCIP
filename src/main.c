@@ -9,6 +9,8 @@
 #include "FTL.h"
 #include "WARCIP.h"
 #include "dispatcher.h"
+#include "data_proc.h"
+
 #define BUFF_SIZE 1024
 
 #define DEBUG 1
@@ -29,6 +31,8 @@ w_driver_t* w_driver;
 w_dispatcher_t* my_dispatcher;
 req_FTL_t* req;
 
+FILE* fp_csv;
+
 int parse (char *text, ssd_t* my_ssd, _queue* free_q) {
 
         double waf;
@@ -46,8 +50,10 @@ int parse (char *text, ssd_t* my_ssd, _queue* free_q) {
         update_time_table(w_driver, req->LBA, req->time);
 
         int cluster_id = WARCIP(w_driver, RWI);
-
+        
+        req->cluster_id = cluster_id;
         req->stream_id = dispatch(my_dispatcher, w_driver->clusters[cluster_id].stream_id);
+        
         w_driver->clusters[cluster_id].stream_id = req->stream_id;
         
 
@@ -72,6 +78,8 @@ int parse (char *text, ssd_t* my_ssd, _queue* free_q) {
                         printf("[Progress %d GB] : WAF : %.2f, TMP_WAF: %.2f, Utiliztion: %.2f\n", GB, waf, tmp_waf, utilization);
 
                         show_stream_group_log(my_ssd);
+
+                        save_cluster_data(fp_csv, w_driver);
                 }
                 if ((progress) % (262144 * 50) == 0) {
                         
@@ -89,14 +97,6 @@ int parse (char *text, ssd_t* my_ssd, _queue* free_q) {
                 break;
         }
         
-        // WARCIP reward process
-        if (my_ssd->log_group[req->stream_id]->valid_copy_num > 0) {
-                w_driver->clusters[cluster_id].num_pages = my_ssd->log_group[req->stream_id]->valid_copy_num;   
-                w_driver->clusters[cluster_id].center *= 2;           
-                my_ssd->log_group[req->stream_id]->valid_copy_num = 0;
-                
-                sort_clusters(w_driver);
-        } 
         
 }
 
@@ -123,6 +123,7 @@ int main (int argc, char** argv)
         w_driver = w_driver_t_init(w_driver);
         my_dispatcher = w_dispatcher_t_init(my_dispatcher);
 
+
         // put WARCIP ENGINE pointer into FTL request.
         req = (req_FTL_t*)malloc(sizeof(req_FTL_t));
         req->w_driver = w_driver;
@@ -135,10 +136,18 @@ int main (int argc, char** argv)
                 printf("Error : File not opened\n");
                 return 0;
         }
+
+        // cluster data file init
+        fp_csv = open_csv_file(fp_csv, "cluster_data.csv");
+        save_header_data(fp_csv);
+
         progress = 0;
         GB = 0;
         read_request(fp, my_ssd, free_q);
+        
+
         fclose(fp);
+        close_csv_file(fp);
 
         printf("User Write : %ld\n", my_ssd->traff_client);
         printf("GC Write   : %ld\n", my_ssd->traff_GC);

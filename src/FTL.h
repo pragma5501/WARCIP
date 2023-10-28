@@ -19,6 +19,7 @@ typedef struct __req_FTL_t {
         int LBA;
         int size;
         int stream_id;
+        int cluster_id;
 
         w_driver_t* w_driver;
         w_dispatcher_t* w_dispatcher;

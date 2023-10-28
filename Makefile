@@ -18,6 +18,7 @@ OBJ_SRC += \
 	$(SRC_DIR)/ssd.c \
 	$(SRC_DIR)/WARCIP.c \
 	$(SRC_DIR)/dispatcher.c \
+	$(SRC_DIR)/data_proc.c \
 	$(SRC_DIR)/util/queue.c \
 	
 TARGET_OBJ =\

@@ -1,12 +1,12 @@
-#include <stdio.h>
 #include "ssd.h"
+
 
 double get_WAF (ssd_t* my_ssd) 
 {
         return (double)my_ssd->traff_ftl / (double)my_ssd->traff_client;
 }
 
-void show_stream_group_log(ssd_t* my_ssd) 
+void show_stream_group_log(ssd_t* my_ssd)
 {
 
         
@@ -20,6 +20,7 @@ void show_stream_group_log(ssd_t* my_ssd)
                         ratio = 0.00;
                 }
                 
-                printf("GROUP %d[%ld] : %.2f (ERASE: %ld)\n", i, my_ssd->log_group[i]->segment_num, ratio, my_ssd->log_group[i]->traff_erase);
+                printf("GROUP %d[%ld] : %.2f (ERASE: %ld)\n", i, 
+                        my_ssd->log_group[i]->segment_num, ratio, my_ssd->log_group[i]->traff_erase);
         }
 }

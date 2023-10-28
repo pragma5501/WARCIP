@@ -2,7 +2,11 @@
 
 
 int compare_centers(const void* a, const void* b) {
-        if (((cluster_t*)a)->center > ((cluster_t*)b)->center) {
+        /**/
+        if ( ( (cluster_t*)a)->stream_id == -1) {
+                return 1;
+        }
+        if (((cluster_t*)a)->center < ((cluster_t*)b)->center) {
                 return 1;
         }
         return -1;
@@ -48,7 +52,7 @@ double* init_clusters (w_driver_t* w_driver)
  
  
         for (int i = 1; i < MAX_CLUSTER_NUM; i++) {
-                w_driver->clusters[i].center = w_driver->clusters[i-1].center * 4;
+                w_driver->clusters[i].center = w_driver->clusters[i-1].center * 2;
         }
 
         for (int i = 0; i < MAX_CLUSTER_NUM; i++) {
@@ -59,7 +63,7 @@ double* init_clusters (w_driver_t* w_driver)
 
 void* reinit_cluster (w_driver_t* w_driver, int cluster_id)
 {
-        w_driver->clusters[cluster_id].num_pages = 0;
+        //w_driver->clusters[cluster_id].num_pages = 0;
 
         // find near two center
         // center is always sorted.
@@ -88,6 +92,9 @@ void* reinit_cluster (w_driver_t* w_driver, int cluster_id)
         sort_clusters(w_driver);
 
 }
+
+
+
 
 double* init_t_table (w_driver_t* w_driver)
 {
@@ -163,6 +170,11 @@ void comp_d_RWI (int* cluster_id, int new_cluster_id,double* d_RWI, double new_d
 
 void dsam (w_driver_t* w_driver, int cluster_id) 
 {
+        for (int i = 0; i < MAX_CLUSTER_NUM; i++) {
+                w_driver->clusters[cluster_id].num_pages = 0;
+        }
+        
+
         if (w_driver->clusters[cluster_id].num_pages >= (THRESHOLD_SPLIT)) {
                 split(w_driver, cluster_id);
                 return;
@@ -174,8 +186,6 @@ void dsam (w_driver_t* w_driver, int cluster_id)
                 }
                 if (w_driver->clusters[i].num_pages <= (THRESHOLD_MERGE)) {
                      merge(w_driver, i);
-                     w_driver->clusters[i].num_pages = 0;
-                     break;
                 }
         }
         
@@ -198,11 +208,14 @@ int find_closest_center (w_driver_t* w_driver, int cluster_id)
 
         // Case 1 : minimum RWI average
         if (cluster_id == 0) {
+                id1 = (MAX_CLUSTER_NUM) - 1; //irrelavent maximum distance value
                 id2 = 1;
         }
         // Case 2 : maximum RWI average
         else if (cluster_id == (MAX_CLUSTER_NUM) - 1) {
-                id2 = cluster_id - 1;// ;
+                id1 = 
+                id2 = cluster_id - 1; //irrelavent maximum distance value
+                
         }
         else {
                 id1 = cluster_id - 1;
@@ -256,11 +269,11 @@ void merge_cluster (w_driver_t* w_driver, int cluster_id)
         int closest_id = find_closest_center(w_driver, cluster_id);
         double cur_center = w_driver->clusters[cluster_id].center;
         double closest_center = w_driver->clusters[closest_id].center;
-
-        w_driver->clusters[cluster_id].center = (cur_center + closest_center) / 2;
+        
+        w_driver->clusters[closest_id].center = (cur_center + closest_center) / 2;
 
         // push free cluster
-        
+        w_driver->clusters[cluster_id].num_pages = 0;
         make_unavailable_cluster(w_driver, cluster_id);
 }
 
