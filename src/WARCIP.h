@@ -14,17 +14,17 @@
 #define MAX_CLUSTER_PAGE_NUM 512
 
 #define THRESHOLD_DSAM  256
-#define THRESHOLD_SPLIT 256 // PAGE_NUM / 2 == 516 / 2;
-#define THRESHOLD_MERGE 10
+#define THRESHOLD_SPLIT 512 * 126 // PAGE_NUM / 2 == 516 / 2;
+#define THRESHOLD_MERGE 512
 #define STATE_CLOSED -1
 
+#define UNAVAILABLE_CLUSTER_CENTER 99999999999.0
 
 typedef struct cluster {
         double center; // average of the sum of RWIs
         int stream_id; // this cluster point open_block[stream_id]
-        double num_pages; // the number of pages that this cluster has.
-        
-        int num_pages_per_term;
+        int num_pages; // the number of pages that this cluster has.
+
 } cluster_t;
 
 
@@ -33,7 +33,7 @@ typedef struct WACRIP_driver {
         double* t_table;
 
         int cnt_block_filled;
-
+        int flag;
         w_dispatcher_t* sender_dispatcher;
 } w_driver_t;
 
@@ -53,7 +53,7 @@ void update_time_table (w_driver_t* w_driver,int LBA, double time);
 
 int cluster_greedy (w_driver_t* w_driver, double RWI);
 void comp_d_RWI (int* cluster_id, int new_cluster_id,double* d_RWI, double new_d);
-void dsam (w_driver_t* w_driver, int cluster_id);
+void dsam (w_driver_t* w_driver);
 
 
 void split (w_driver_t* w_driver, int cluster_id);

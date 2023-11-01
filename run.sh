@@ -3,7 +3,7 @@
 make clean; make
 
 #run
-./bin/my_pftl > new_result.txt
+./bin/my_pftl
 
 #data processing
 

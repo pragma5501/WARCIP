@@ -19,20 +19,24 @@ void close_csv_file (FILE*fp)
 void save_header_data (FILE* fp)
 {
         for (int i = 0; i < (MAX_CLUSTER_NUM); i++) {
-                fprintf(fp, "Cluster_%d", i);
-                if (i == (MAX_CLUSTER_NUM) - 1) break;
-                fprintf(fp, ",");
+                fprintf(fp, "Cluster_%d,", i);
+                
         }
+        fprintf(fp, "WAF");
         fprintf(fp, "\n");
 }
 
-void save_cluster_data (FILE* fp, w_driver_t* w_driver)
+void save_cluster_data (FILE* fp, ssd_t* my_ssd, w_driver_t* w_driver)
 {
         // save cluster data
         for (int i = 0; i < (MAX_CLUSTER_NUM); i++) {
-                fprintf(fp, "%.5f", w_driver->clusters[i].center);
-                if (i == (MAX_CLUSTER_NUM) - 1) break;
-                fprintf(fp, ",");
+                if(w_driver->clusters[i].stream_id == (STATE_CLOSED) ) {
+                        fprintf(fp, "NaN,");
+                        continue;
+                }
+                fprintf(fp, "%.5f,", w_driver->clusters[i].center);
+                
         }
+        fprintf(fp, "%.2f", get_WAF(my_ssd));
         fprintf(fp, "\n");
 }

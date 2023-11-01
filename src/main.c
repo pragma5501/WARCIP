@@ -79,7 +79,7 @@ int parse (char *text, ssd_t* my_ssd, _queue* free_q) {
 
                         show_stream_group_log(my_ssd);
 
-                        save_cluster_data(fp_csv, w_driver);
+                        save_cluster_data(fp_csv, my_ssd ,w_driver);
                 }
                 if ((progress) % (262144 * 50) == 0) {
                         
@@ -116,7 +116,6 @@ int main (int argc, char** argv)
         _queue* free_q = free_q_init(my_ssd, q_init());
 
         
-
         // initialze mapping table by set value of mapping table -1
         init_mapping_table();
         

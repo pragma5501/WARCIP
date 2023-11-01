@@ -214,7 +214,7 @@ int free_q_pop (ssd_t* my_ssd, _queue* free_q, req_FTL_t* req_FTL)
                 my_ssd->block_op[stream_id]->flag_op = OPEN;
                 my_ssd->idx_block_op[stream_id] += 1;
 
-                // reinit cluster
+                
                 GC_trigger(my_ssd, free_q, req_FTL);
         }
         
@@ -283,8 +283,6 @@ void GC_trigger(ssd_t* my_ssd, _queue* free_q, req_FTL_t* req_FTL)
         while (free_q->size < THRESHOLD_FREE_Q) {
                 GC(my_ssd, free_q, req_FTL);
         }
-        
-
 
 }
 
